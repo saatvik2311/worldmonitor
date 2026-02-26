@@ -4278,7 +4278,9 @@ export class DeckGLMap {
               ...filterArr,
               ['!=', ['get', 'disputed'], 1],
               ['!=', ['get', 'disputed'], 'true'],
-              ['!=', ['get', 'disputed'], true]
+              ['!=', ['get', 'disputed'], true],
+              ['!=', ['get', 'admin_level'], 4],
+              ['!=', ['get', 'admin_level'], 6]
             ]);
           }
         }
