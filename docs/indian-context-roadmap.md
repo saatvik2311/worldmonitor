@@ -59,3 +59,25 @@ To enhance the global monitoring aspect, we can expand from delayed flights to a
 The current UN Carto maps often fail to adequately visualize the total reach of India's sea control. To remedy this, we can draw data from the UN Convention on the Law of the Sea (UNCLOS) datasets:
 * **Exclusive Economic Zone (EEZ)**: India commands over 2.02 million sq km of EEZ. We can fetch and draw a transparent `GeoJson Polygon Layer` that outlines the 200 nautical mile boundary tracing India's coastline. 
 * **Territorial Waters**: Plot the 12 nautical mile sovereign sea region boundary.
+
+### 2.7. Economic Indicators (Factories, Trade, & Services)
+To provide deep insights into India's internal economic engines, we can integrate the dashboard widgets with macro-economic REST APIs:
+* **Factories & Manufacturing**: Integrate datasets from the **Ministry of Statistics and Programme Implementation (MoSPI)** to track the Index of Industrial Production (IIP).
+* **Trade & Export**: Hook into the Open Government Data (OGD) platform or Ministry of Commerce APIs to populate the "Trade Policy" and "Supply Chain" widgets with India's monthly export/import data.
+* **Services Sector**: Integrate the core Indian PMI (Purchasing Managers' Index) services data into the broader Economic Indicators panel.
+
+### 2.8. Advanced Map Search & Geocoding (Tier 2/3 Cities)
+The native Mapbox/OSM geocoder occasionally fails to locate specific Tier-2 and Tier-3 Indian cities (e.g., Dehradun) or misinterprets Indian address formatting.
+* **Solution**: Replace the native map search bar with the **MapmyIndia (Mappls) Geocoding API** or the **Ola Maps Geocoding API**. These domestic APIs are hyper-specialized for pinpointing Indian house numbers, landmarks, pin-codes, and sub-districts with high precision.
+
+### 2.9. Expanding Map POIs (Points of Interest)
+* The map currently plots the National Stock Exchange (NSE) and Reserve Bank of India (RBI) via local configs (e.g., `src/config/finance-geo.ts`).
+* **Addition**: We will manually inject the **Bombay Stock Exchange (BSE)** at Dalal Street, Mumbai, ensuring it renders alongside the NSE.
+* **Addition**: Expand the local database to map India's vital infrastructure: ISRO launchpads, DRDO headquarters, and strategic maritime ports (JNPT, Mundra, Cochin).
+
+### 2.10. Dashboard Widget Overhaul for India
+The overarching World Monitor UI grid can be heavily localized for the Indian theater:
+* **Live Webcams**: Render feeds from major Indian highways, metropolitan intersections (Mumbai/Delhi traffic cameras), or key landmarks.
+* **Country Instability / Conflict**: Filter the UCDP event overlays to focus specifically on South Asian localized tensions, border skirmishes (LAC/LoC), or regional disturbances.
+* **Infrastructure Cascade**: Map India's optical fiber network (BharatNet), major coastal Adani/Government ports, and the national power grid using `GeoJson` LineString layers.
+* **Climate Anomalies & Fires**: Directly tap into the Indian Meteorological Department (IMD) to display heatwave warnings, drought indices, and monsoon progression.
