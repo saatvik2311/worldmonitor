@@ -431,6 +431,7 @@ export class DeckGLMap {
 
     this.maplibreMap.on('style.load', () => {
       this.hideDisputedMapboxBorders();
+      this.renameDisputedMapboxLabels();
     });
 
     const canvas = this.maplibreMap.getCanvas();
@@ -4238,6 +4239,7 @@ export class DeckGLMap {
     this.countryGeoJsonLoaded = false;
     this.maplibreMap.once('style.load', () => {
       this.hideDisputedMapboxBorders();
+      this.renameDisputedMapboxLabels();
       this.loadCountryBoundaries();
       this.updateCountryLayerPaint(theme);
       // Re-render deck.gl overlay after style swap — interleaved layers need
@@ -4287,6 +4289,39 @@ export class DeckGLMap {
       });
     } catch {
       // Ignore filter exceptions for specific layers that don't support it
+    }
+  }
+
+  private renameDisputedMapboxLabels(): void {
+    if (!this.maplibreMap) return;
+    try {
+      const style = this.maplibreMap.getStyle();
+      if (!style || !style.layers) return;
+
+      style.layers.forEach((layer) => {
+        if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+          const currentTextField = layer.layout['text-field'];
+
+          this.maplibreMap!.setLayoutProperty(layer.id, 'text-field', [
+            'case',
+            ['==', ['get', 'name_en'], 'Azad Kashmir'], 'Pakistan Occupied Kashmir (PoK)',
+            ['==', ['get', 'name'], 'Azad Kashmir'], 'Pakistan Occupied Kashmir (PoK)',
+            ['==', ['get', 'name_en'], 'Gilgit-Baltistan'], 'Gilgit-Baltistan (PoK)',
+            ['==', ['get', 'name'], 'Gilgit-Baltistan'], 'Gilgit-Baltistan (PoK)',
+            ['==', ['get', 'name_en'], 'Zangnan'], 'Arunachal Pradesh',
+            ['==', ['get', 'name'], 'Zangnan'], 'Arunachal Pradesh',
+            ['==', ['get', 'name_en'], 'Akesai Qin'], 'Aksai Chin',
+            ['==', ['get', 'name'], '阿克赛钦'], 'Aksai Chin',
+            ['==', ['get', 'name_en'], 'Bangong Co'], 'Pangong Tso',
+            ['==', ['get', 'name'], '班公错'], 'Pangong Tso',
+            ['==', ['get', 'name_en'], 'Galwan He'], 'Galwan Valley',
+            ['==', ['get', 'name'], '加勒万河'], 'Galwan Valley',
+            currentTextField
+          ]);
+        }
+      });
+    } catch {
+      // Ignore exceptions for specific style modifications
     }
   }
 
