@@ -426,7 +426,7 @@ export class DeckGLMap {
           dragRotate: false,
           touchPitch: false,
         }
-        : {}),
+        : {})
     });
 
     this.maplibreMap.on('style.load', () => {
@@ -4302,25 +4302,39 @@ export class DeckGLMap {
         if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
           const currentTextField = layer.layout['text-field'];
 
+          // Helper to preserve MapLibre's string formatting like "{name_en}" vs raw "name_en"
+          const formatOutput = (replacement: string) => {
+            if (typeof currentTextField === 'string') {
+              // If it's a simple string like "{name_en}", replace the token with the new string
+              return currentTextField.replace(/\{name_en\}|\{name\}/g, replacement);
+            }
+            if (Array.isArray(currentTextField) && currentTextField[0] === 'format') {
+              // Complex format array — just return the raw string as fallback to avoid breaking it
+              return replacement;
+            }
+            // Default safe return
+            return replacement;
+          };
+
           this.maplibreMap!.setLayoutProperty(layer.id, 'text-field', [
             'case',
-            ['==', ['get', 'name_en'], 'Azad Kashmir'], 'Pakistan Occupied Kashmir (PoK)',
-            ['==', ['get', 'name'], 'Azad Kashmir'], 'Pakistan Occupied Kashmir (PoK)',
-            ['==', ['get', 'name_en'], 'Gilgit-Baltistan'], 'Gilgit-Baltistan (PoK)',
-            ['==', ['get', 'name'], 'Gilgit-Baltistan'], 'Gilgit-Baltistan (PoK)',
-            ['==', ['get', 'name_en'], 'Zangnan'], 'Arunachal Pradesh',
-            ['==', ['get', 'name'], 'Zangnan'], 'Arunachal Pradesh',
-            ['==', ['get', 'name_en'], 'Akesai Qin'], 'Aksai Chin',
-            ['==', ['get', 'name'], '阿克赛钦'], 'Aksai Chin',
-            ['==', ['get', 'name_en'], 'Bangong Co'], 'Pangong Tso',
-            ['==', ['get', 'name'], '班公错'], 'Pangong Tso',
-            ['==', ['get', 'name_en'], 'Galwan He'], 'Galwan Valley',
-            ['==', ['get', 'name'], '加勒万河'], 'Galwan Valley',
+            ['==', ['get', 'name_en'], 'Azad Kashmir'], formatOutput('Pakistan Occupied Kashmir (PoK)'),
+            ['==', ['get', 'name'], 'Azad Kashmir'], formatOutput('Pakistan Occupied Kashmir (PoK)'),
+            ['==', ['get', 'name_en'], 'Gilgit-Baltistan'], formatOutput('Gilgit-Baltistan (PoK)'),
+            ['==', ['get', 'name'], 'Gilgit-Baltistan'], formatOutput('Gilgit-Baltistan (PoK)'),
+            ['==', ['get', 'name_en'], 'Zangnan'], formatOutput('Arunachal Pradesh'),
+            ['==', ['get', 'name'], 'Zangnan'], formatOutput('Arunachal Pradesh'),
+            ['==', ['get', 'name_en'], 'Akesai Qin'], formatOutput('Aksai Chin'),
+            ['==', ['get', 'name'], '阿克赛钦'], formatOutput('Aksai Chin'),
+            ['==', ['get', 'name_en'], 'Bangong Co'], formatOutput('Pangong Tso'),
+            ['==', ['get', 'name'], '班公错'], formatOutput('Pangong Tso'),
+            ['==', ['get', 'name_en'], 'Galwan He'], formatOutput('Galwan Valley'),
+            ['==', ['get', 'name'], '加勒万河'], formatOutput('Galwan Valley'),
             currentTextField
           ]);
         }
       });
-    } catch {
+    } catch (e) {
       // Ignore exceptions for specific style modifications
     }
   }
