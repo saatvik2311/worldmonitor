@@ -2,7 +2,7 @@ import type { Feed } from '@/types';
 import { SITE_VARIANT } from './variant';
 
 // Helper to create RSS proxy URL (Vercel)
-const rss = (url: string) => `/api/rss-proxy?url=${encodeURIComponent(url)}`;
+export const rss = (url: string) => `/api/rss-proxy?url=${encodeURIComponent(url)}`;
 
 // Keep dedicated alias for feeds historically fetched through Railway.
 // `rss-proxy` now handles secure server-side fallback.

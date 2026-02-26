@@ -232,6 +232,12 @@ export class SearchManager implements AppModule {
   private handleSearchResult(result: SearchResult): void {
     trackSearchResultSelected(result.type);
     switch (result.type) {
+      case 'location': {
+        const loc = result.data as { lat: number; lon: number };
+        this.ctx.map?.setView('global');
+        setTimeout(() => { this.ctx.map?.setCenter(loc.lat, loc.lon, 10); }, 300);
+        break;
+      }
       case 'news': {
         const item = result.data as NewsItem;
         this.scrollToPanel('politics');
@@ -450,13 +456,13 @@ export class SearchManager implements AppModule {
           setTheme(action);
         } else if (action === 'fullscreen') {
           if (document.fullscreenElement) {
-            try { void document.exitFullscreen()?.catch(() => {}); } catch {}
+            try { void document.exitFullscreen()?.catch(() => { }); } catch { }
           } else {
             const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
             if (el.requestFullscreen) {
-              try { void el.requestFullscreen()?.catch(() => {}); } catch {}
+              try { void el.requestFullscreen()?.catch(() => { }); } catch { }
             } else if (el.webkitRequestFullscreen) {
-              try { el.webkitRequestFullscreen(); } catch {}
+              try { el.webkitRequestFullscreen(); } catch { }
             }
           }
         } else if (action === 'settings') {

@@ -439,4 +439,32 @@ export const AI_RESEARCH_LABS: AIResearchLab[] = [
     notableWork: ['Mobile AI', 'Edge computing'],
     publications: 150,
   },
+
+  // Indian Research Institutions
+  {
+    id: 'isro-hq',
+    name: 'ISRO Headquarters',
+    type: 'research institute',
+    city: 'Bengaluru',
+    country: 'India',
+    lat: 13.0335,
+    lon: 77.5872,
+    foundedYear: 1969,
+    focusAreas: ['Space Research', 'Satellite Navigation', 'Earth Observation', 'Space Exploration'],
+    notableWork: ['Chandrayaan', 'Mangalyaan', 'NavIC', 'Gaganyaan'],
+    publications: 1500,
+  },
+  {
+    id: 'drdo-hq',
+    name: 'DRDO Headquarters',
+    type: 'research institute',
+    city: 'New Delhi',
+    country: 'India',
+    lat: 28.5997,
+    lon: 77.1645,
+    foundedYear: 1958,
+    focusAreas: ['Defense Technology', 'Aeronautics', 'Advanced Computing', 'Cyber Security'],
+    notableWork: ['Agni Missiles', 'Tejas LCA', 'Netra AEW&C', 'Project Kusha'],
+    publications: 2000,
+  },
 ];

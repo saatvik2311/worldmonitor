@@ -31,3 +31,7 @@ src-tauri/sidecar/node/*
 api/[[][[].*.js
 .claudedocs/
 src-tauri/sidecar/node-locked
+
+# Temporary dependency backups
+.npm-cache/
+node_modules_bad/

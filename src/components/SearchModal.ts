@@ -2,13 +2,15 @@ import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
 import { trackSearchUsed } from '@/services/analytics';
 import { COMMANDS, type Command } from '@/config/commands';
+import { geocoderProvider } from '@/utils/geocoder';
+import { debounce } from '@/utils/index';
 
 interface CommandResult {
   command: Command;
   score: number;
 }
 
-export type SearchResultType = 'country' | 'news' | 'hotspot' | 'market' | 'prediction' | 'conflict' | 'base' | 'pipeline' | 'cable' | 'datacenter' | 'earthquake' | 'outage' | 'nuclear' | 'irradiator' | 'techcompany' | 'ailab' | 'startup' | 'techevent' | 'techhq' | 'accelerator' | 'exchange' | 'financialcenter' | 'centralbank' | 'commodityhub';
+export type SearchResultType = 'location' | 'country' | 'news' | 'hotspot' | 'market' | 'prediction' | 'conflict' | 'base' | 'pipeline' | 'cable' | 'datacenter' | 'earthquake' | 'outage' | 'nuclear' | 'irradiator' | 'techcompany' | 'ailab' | 'startup' | 'techevent' | 'techhq' | 'accelerator' | 'exchange' | 'financialcenter' | 'centralbank' | 'commodityhub';
 
 export interface SearchResult {
   type: SearchResultType;
@@ -41,6 +43,7 @@ export class SearchModal {
   private sources: SearchableSource[] = [];
   private results: SearchResult[] = [];
   private commandResults: CommandResult[] = [];
+  private geocodeResults: SearchResult[] = [];
   private selectedIndex = 0;
   private recentSearches: string[] = [];
   private onSelect?: (result: SearchResult) => void;
@@ -48,6 +51,37 @@ export class SearchModal {
   private placeholder: string;
   private hint: string;
   private activePanelIds: Set<string> = new Set();
+
+  private currentGeocodeReqId = 0;
+  private isGeocoding = false;
+
+  private debouncedGeocode = debounce(async (query: any) => {
+    if (query.length < 3) return;
+    const reqId = ++this.currentGeocodeReqId;
+    this.isGeocoding = true;
+    this.renderResults(); // Show loading state if needed
+
+    try {
+      const gResults = await geocoderProvider.forward(query);
+      if (reqId !== this.currentGeocodeReqId) return; // Stale request
+
+      this.geocodeResults = gResults.map(r => ({
+        type: 'location',
+        id: r.id,
+        title: r.title,
+        subtitle: r.subtitle,
+        data: { lat: r.lat, lon: r.lon }
+      }));
+    } catch (e) {
+      console.warn('Geocoding error', e);
+      if (reqId === this.currentGeocodeReqId) this.geocodeResults = [];
+    } finally {
+      if (reqId === this.currentGeocodeReqId) {
+        this.isGeocoding = false;
+        this.renderResults();
+      }
+    }
+  }, 500);
 
   constructor(container: HTMLElement, options?: SearchModalOptions) {
     this.container = container;
@@ -92,6 +126,7 @@ export class SearchModal {
       this.resultsList = null;
       this.results = [];
       this.commandResults = [];
+      this.geocodeResults = [];
       this.selectedIndex = 0;
     }
   }
@@ -157,11 +192,18 @@ export class SearchModal {
 
     if (!query) {
       this.commandResults = [];
+      this.geocodeResults = [];
       this.showRecentOrEmpty();
       return;
     }
 
     this.commandResults = this.matchCommands(query);
+
+    if (query.length >= 3) {
+      this.debouncedGeocode(query);
+    } else {
+      this.geocodeResults = [];
+    }
 
     const byType = new Map<SearchResultType, (SearchResult & { _score: number })[]>();
 
@@ -265,13 +307,22 @@ export class SearchModal {
   }
 
   private get totalResultCount(): number {
-    return this.commandResults.length + this.results.length;
+    return this.commandResults.length + this.geocodeResults.length + this.results.length;
   }
 
   private renderResults(): void {
     if (!this.resultsList) return;
 
-    if (this.commandResults.length === 0 && this.results.length === 0) {
+    if (this.commandResults.length === 0 && this.results.length === 0 && this.geocodeResults.length === 0) {
+      if (this.isGeocoding) {
+        this.resultsList.innerHTML = `
+          <div class="search-empty">
+            <div class="search-empty-icon" style="animation: pulse 1.5s infinite">☵</div>
+            <div>${t('modals.search.loading') || 'Searching globally...'}</div>
+          </div>
+        `;
+        return;
+      }
       this.resultsList.innerHTML = `
         <div class="search-empty">
           <div class="search-empty-icon">\u2205</div>
@@ -282,6 +333,7 @@ export class SearchModal {
     }
 
     const icons: Record<SearchResultType, string> = {
+      location: '\u{1F4CD}',
       country: '\u{1F3F3}\uFE0F',
       news: '\u{1F4F0}',
       hotspot: '\u{1F4CD}',
@@ -324,12 +376,14 @@ export class SearchModal {
           </div>`;
         globalIndex++;
       }
-      if (this.results.length > 0) {
+      if (this.results.length > 0 || this.geocodeResults.length > 0) {
         html += '<div class="search-section-header">Results</div>';
       }
     }
 
-    for (const result of this.results) {
+    const allResults = [...this.geocodeResults, ...this.results];
+
+    for (const result of allResults) {
       html += `
         <div class="search-result-item ${globalIndex === this.selectedIndex ? 'selected' : ''}" data-index="${globalIndex}">
           <span class="search-result-icon">${icons[result.type]}</span>
@@ -340,6 +394,16 @@ export class SearchModal {
           <span class="search-result-type">${escapeHtml(t(`modals.search.types.${result.type}`) || result.type)}</span>
         </div>`;
       globalIndex++;
+    }
+
+    if (this.isGeocoding) {
+      html += `
+        <div class="search-result-item" style="opacity: 0.5; pointer-events: none;">
+          <span class="search-result-icon">☵</span>
+          <div class="search-result-content">
+            <div class="search-result-title">Searching live maps...</div>
+          </div>
+        </div>`;
     }
 
     this.resultsList.innerHTML = html;
@@ -422,7 +486,8 @@ export class SearchModal {
     }
 
     const entityIndex = index - this.commandResults.length;
-    const result = this.results[entityIndex];
+    const allResults = [...this.geocodeResults, ...this.results];
+    const result = allResults[entityIndex];
     if (!result) return;
 
     this.saveRecentSearch(this.input?.value.trim() || '');

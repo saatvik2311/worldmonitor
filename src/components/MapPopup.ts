@@ -2,6 +2,8 @@ import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, 
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { WeatherAlert } from '@/services/weather';
+import type { AqiStation } from '@/services/india-aqi';
+import type { EezPolygon } from '@/services/india-eez';
 import { UNDERSEA_CABLES } from '@/config';
 import type { StartupHub, Accelerator, TechHQ, CloudRegion } from '@/config/tech-geo';
 import type { TechHubActivity } from '@/services/tech-activity';
@@ -14,7 +16,7 @@ import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'aqi' | 'eez';
 
 interface TechEventPopupData {
   id: string;
@@ -120,7 +122,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | AqiStation | EezPolygon | { name?: string; aqi?: number; properties?: any };
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -428,6 +430,20 @@ export class MapPopup {
         return this.renderCentralBankPopup(data.data as CentralBankPopupData);
       case 'commodityHub':
         return this.renderCommodityHubPopup(data.data as CommodityHubPopupData);
+      case 'aqi':
+        const aqiData = data.data as AqiStation;
+        return `<div class="popup-header"><span class="popup-title">${escapeHtml(aqiData.name || 'AQI Station')}</span><button class="popup-close">×</button></div>
+                <div class="popup-body">
+                  <div class="popup-stat"><span class="stat-label">AQI:</span><span class="stat-value">${aqiData.aqi}</span></div>
+                  <div class="popup-stat"><span class="stat-label">PM2.5:</span><span class="stat-value">${aqiData.pm25} µg/m³</span></div>
+                  <div class="popup-stat"><span class="stat-label">Status:</span><span class="stat-value">${escapeHtml(aqiData.status)}</span></div>
+                </div>`;
+      case 'eez':
+        const eezData = data.data as { properties: { name: string, areaSqKm: number } };
+        return `<div class="popup-header"><span class="popup-title">${escapeHtml(eezData.properties?.name || 'Exclusive Economic Zone')}</span><button class="popup-close">×</button></div>
+                <div class="popup-body">
+                  <div class="popup-stat"><span class="stat-label">Area:</span><span class="stat-value">${eezData.properties?.areaSqKm?.toLocaleString()} sq km</span></div>
+                </div>`;
       default:
         return '';
     }
@@ -1201,8 +1217,8 @@ export class MapPopup {
       ? marketStatus === 'open'
         ? t('popups.open')
         : marketStatus === 'closed'
-        ? t('popups.economic.closed')
-        : t('popups.unknown')
+          ? t('popups.economic.closed')
+          : t('popups.unknown')
       : '';
 
     return `
@@ -1811,8 +1827,8 @@ export class MapPopup {
     const daysLabel = event.daysUntil === 0
       ? t('popups.techEvent.days.today')
       : event.daysUntil === 1
-      ? t('popups.techEvent.days.tomorrow')
-      : t('popups.techEvent.days.inDays', { count: String(event.daysUntil) });
+        ? t('popups.techEvent.days.tomorrow')
+        : t('popups.techEvent.days.inDays', { count: String(event.daysUntil) });
 
     return `
       <div class="popup-header tech-event ${urgencyClass}">

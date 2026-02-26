@@ -149,4 +149,5 @@ export const COMMODITY_HUBS: CommodityHub[] = [
   { id: 'mcx', name: 'Multi Commodity Exchange', city: 'Mumbai', country: 'IN', lat: 19.0536, lon: 72.8582, type: 'exchange', commodities: ['Gold', 'Silver', 'Crude Oil', 'Natural Gas'], description: 'India\'s largest commodity exchange' },
   { id: 'rotterdam', name: 'Port of Rotterdam', city: 'Rotterdam', country: 'NL', lat: 51.9025, lon: 4.4717, type: 'port', commodities: ['Crude Oil', 'LNG', 'Coal', 'Iron Ore'], description: 'Europe\'s largest port, key energy hub' },
   { id: 'houston', name: 'Houston Energy Corridor', city: 'Houston', country: 'US', lat: 29.7765, lon: -95.4469, type: 'refinery', commodities: ['Crude Oil', 'Natural Gas', 'Petrochemicals'], description: 'World\'s energy capital' },
+  { id: 'jnpt', name: 'Jawaharlal Nehru Port Trust (JNPT)', city: 'Navi Mumbai', country: 'IN', lat: 18.9500, lon: 72.9500, type: 'port', commodities: ['Containers', 'Bulk Cargo', 'Petroleum Products'], description: 'India\'s largest container port' },
 ];

@@ -43,6 +43,7 @@ import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import type { WeatherAlert } from '@/services/weather';
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
+import { getContext } from '@/contexts';
 import { debounce, rafSchedule, getCurrentTheme } from '@/utils/index';
 import {
   INTEL_HOTSPOTS,
@@ -88,6 +89,8 @@ import type { KindnessPoint } from '@/services/kindness-data';
 import type { HappinessData } from '@/services/happiness-data';
 import type { RenewableInstallation } from '@/services/renewable-installations';
 import type { SpeciesRecovery } from '@/services/conservation-data';
+import type { AqiStation } from '@/services/india-aqi';
+import type { EezPolygon } from '@/services/india-eez';
 import { getCountriesGeoJson, getCountryAtCoordinates } from '@/services/country-geometry';
 import type { FeatureCollection, Geometry } from 'geojson';
 
@@ -257,6 +260,8 @@ export class DeckGLMap {
   // Data stores
   private hotspots: HotspotWithBreaking[];
   private earthquakes: Earthquake[] = [];
+  private aqiData: AqiStation[] = [];
+  private eezData: EezPolygon | null = null;
   private weatherAlerts: WeatherAlert[] = [];
   private outages: InternetOutage[] = [];
   private cyberThreats: CyberThreat[] = [];
@@ -430,8 +435,9 @@ export class DeckGLMap {
     });
 
     this.maplibreMap.on('style.load', () => {
-      this.hideDisputedMapboxBorders();
-      this.renameDisputedMapboxLabels();
+      const context = getContext();
+      context.applyGeometry(this.maplibreMap!);
+      context.applyLabels(this.maplibreMap!);
     });
 
     const canvas = this.maplibreMap.getCanvas();
@@ -1026,6 +1032,14 @@ export class DeckGLMap {
       layers.push(this.createNaturalEventsLayer(filteredNaturalEvents));
     }
 
+    if (mapLayers.aqi && this.aqiData.length > 0) {
+      layers.push(this.createAqiLayer());
+    }
+
+    if (mapLayers.eez && this.eezData) {
+      layers.push(this.createEezLayer());
+    }
+
     // Satellite fires layer (NASA FIRMS)
     if (mapLayers.fires && this.firmsFireData.length > 0) {
       layers.push(this.createFiresLayer());
@@ -1295,6 +1309,9 @@ export class DeckGLMap {
 
   private createIndiaBoundariesLayer(): GeoJsonLayer | false {
     if (!this.maplibreMap || SITE_VARIANT === 'happy') return false;
+    const context = getContext();
+    if (!context.hasGeometryOverrides) return false;
+
     const isLight = getCurrentTheme() === 'light';
     return new GeoJsonLayer({
       id: 'india-boundaries-layer',
@@ -1530,15 +1547,14 @@ export class DeckGLMap {
       id: 'earthquakes-layer',
       data: earthquakes,
       getPosition: (d) => [d.location?.longitude ?? 0, d.location?.latitude ?? 0],
-      getRadius: (d) => Math.pow(2, d.magnitude) * 1000,
+      getRadius: (d) => Math.max(2, Math.pow(1.5, d.magnitude)) * 10000,
       getFillColor: (d) => {
-        const mag = d.magnitude;
-        if (mag >= 6) return [255, 0, 0, 200] as [number, number, number, number];
-        if (mag >= 5) return [255, 100, 0, 200] as [number, number, number, number];
-        return COLORS.earthquake;
+        if (d.magnitude >= 7) return [255, 0, 0, 200];
+        if (d.magnitude >= 5) return [255, 165, 0, 200];
+        return [255, 255, 0, 150];
       },
-      radiusMinPixels: 4,
-      radiusMaxPixels: 30,
+      radiusMinPixels: 3,
+      radiusMaxPixels: 20,
       pickable: true,
     });
   }
@@ -1556,6 +1572,39 @@ export class DeckGLMap {
       },
       radiusMinPixels: 5,
       radiusMaxPixels: 18,
+      pickable: true,
+    });
+  }
+
+  private createAqiLayer(): ScatterplotLayer {
+    return new ScatterplotLayer({
+      id: 'india-aqi-layer',
+      data: this.aqiData,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => d.aqi * 100, // Scale radius slightly by AQI
+      getFillColor: (d) => {
+        if (d.aqi > 300) return [128, 0, 0, 200]; // Severe
+        if (d.aqi > 200) return [255, 0, 0, 200]; // Poor/Very Poor
+        if (d.aqi > 100) return [255, 165, 0, 200]; // Moderate
+        if (d.aqi > 50) return [255, 255, 0, 200]; // Satisfactory
+        return [0, 255, 0, 200]; // Good
+      },
+      radiusMinPixels: 5,
+      radiusMaxPixels: 20,
+      pickable: true,
+    });
+  }
+
+  private createEezLayer(): GeoJsonLayer {
+    return new GeoJsonLayer({
+      id: 'india-eez-layer',
+      data: this.eezData as any,
+      filled: true,
+      stroked: true,
+      getFillColor: [0, 150, 255, 40], // Light blue transparent fill
+      getLineColor: [0, 100, 255, 180], // Solid blue border
+      getLineWidth: 2,
+      lineWidthMinPixels: 1,
       pickable: true,
     });
   }
@@ -2739,6 +2788,10 @@ export class DeckGLMap {
           </div>`,
         };
       }
+      case 'india-aqi-layer':
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.stationName)}</strong><br/>AQI: ${text(obj.aqi)} (${text(obj.category)})</div>` };
+      case 'india-eez-layer':
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.properties?.name || 'Exclusive Economic Zone')}</strong></div>` };
       default:
         return null;
     }
@@ -2909,6 +2962,8 @@ export class DeckGLMap {
       'ais-disruptions-layer': 'ais',
       'cable-advisories-layer': 'cable-advisory',
       'repair-ships-layer': 'repair-ship',
+      'india-aqi-layer': 'aqi',
+      'india-eez-layer': 'eez',
     };
 
     const popupType = layerToPopupType[layerId];
@@ -3092,6 +3147,8 @@ export class DeckGLMap {
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
             { key: 'economic', label: t('components.deckgl.layers.economicCenters'), icon: '&#128176;' },
             { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
+            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '&#128168;' },
+            { key: 'eez', label: t('components.deckgl.layers.eez'), icon: '&#128031;' },
           ];
 
     toggles.innerHTML = `
@@ -3268,6 +3325,8 @@ export class DeckGLMap {
       helpItem(label('climateAnomalies'), 'climateAnomalies'),
       helpItem(label('economicCenters'), 'economicCenters'),
       helpItem(label('criticalMinerals'), 'mineralsFull'),
+      helpItem(label('aqi'), 'aqi'),
+      helpItem(label('eez'), 'eez'),
     ])}
         ${helpSection('labels', [
       helpItem(staticLabel('countries'), 'countriesOverlay'),
@@ -3351,6 +3410,9 @@ export class DeckGLMap {
             { shape: shapes.triangle('rgb(68, 136, 255)'), label: t('components.deckgl.legend.base') },
             { shape: shapes.hexagon(isLight ? 'rgb(180, 120, 0)' : 'rgb(255, 220, 0)'), label: t('components.deckgl.legend.nuclear') },
             { shape: shapes.square('rgb(136, 68, 255)'), label: t('components.deckgl.legend.datacenter') },
+            { shape: shapes.circle('rgb(0, 255, 0)'), label: t('components.deckgl.legend.aqiGood') },
+            { shape: shapes.circle('rgb(255, 165, 0)'), label: t('components.deckgl.legend.aqiModerate') },
+            { shape: shapes.square('rgb(0, 150, 255)'), label: t('components.deckgl.legend.eez') },
           ];
 
     legend.innerHTML = `
@@ -3737,6 +3799,16 @@ export class DeckGLMap {
 
   public setRenewableInstallations(installations: RenewableInstallation[]): void {
     this.renewableInstallations = installations;
+    this.render();
+  }
+
+  public setAqiData(stations: AqiStation[]): void {
+    this.aqiData = stations;
+    this.render();
+  }
+
+  public setEezData(eez: EezPolygon): void {
+    this.eezData = eez;
     this.render();
   }
 
@@ -4238,8 +4310,10 @@ export class DeckGLMap {
     // setStyle() replaces all sources/layers — reset guard so country layers are re-added
     this.countryGeoJsonLoaded = false;
     this.maplibreMap.once('style.load', () => {
-      this.hideDisputedMapboxBorders();
-      this.renameDisputedMapboxLabels();
+      const context = getContext();
+      context.applyGeometry(this.maplibreMap!);
+      context.applyLabels(this.maplibreMap!);
+
       this.loadCountryBoundaries();
       this.updateCountryLayerPaint(theme);
       // Re-render deck.gl overlay after style swap — interleaved layers need
@@ -4258,99 +4332,7 @@ export class DeckGLMap {
     } catch { /* layers may not be ready */ }
   }
 
-  private hideDisputedMapboxBorders(): void {
-    if (!this.maplibreMap) return;
-    try {
-      const style = this.maplibreMap.getStyle();
-      if (!style || !style.layers) return;
-      style.layers.forEach((layer) => {
-        const id = layer.id.toLowerCase();
-        // Target boundary and admin layers
-        if (id.includes('boundary') || id.includes('admin') || layer.sourceLayer === 'boundary') {
-          // Explicitly hide layers designated for disputed boundaries
-          if (id.includes('disputed')) {
-            this.maplibreMap!.setLayoutProperty(layer.id, 'visibility', 'none');
-          } else if (layer.type === 'line') {
-            // Further filter the general boundary layers to exclude any disputed line segments
-            const currentFilter = this.maplibreMap!.getFilter(layer.id) || ['all'];
-            const isAllArray = Array.isArray(currentFilter) && currentFilter[0] === 'all';
-            const filterArr = isAllArray ? currentFilter : ['all', currentFilter];
 
-            this.maplibreMap!.setFilter(layer.id, [
-              ...filterArr,
-              ['!=', ['get', 'disputed'], 1],
-              ['!=', ['get', 'disputed'], 'true'],
-              ['!=', ['get', 'disputed'], true],
-              ['!=', ['get', 'admin_level'], 4],
-              ['!=', ['get', 'admin_level'], 6]
-            ]);
-          }
-        }
-      });
-    } catch {
-      // Ignore filter exceptions for specific layers that don't support it
-    }
-  }
-
-  private renameDisputedMapboxLabels(): void {
-    if (!this.maplibreMap) return;
-    try {
-      const style = this.maplibreMap.getStyle();
-      if (!style || !style.layers) return;
-
-      style.layers.forEach((layer) => {
-        if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
-          const currentTextField = layer.layout['text-field'];
-
-          // Helper to convert legacy text-field '{prop}' strings or stops into valid MapLibre expressions
-          // because data-driven expressions like 'case' do not automatically evaluate '{prop}' syntax.
-          const convertToExpression = (val: any): any => {
-            if (typeof val === 'string') {
-              // E.g., "{name_en}" -> ["get", "name_en"]
-              const match = val.match(/^\{([^}]+)\}$/);
-              if (match) return ['get', match[1]];
-              return val;
-            }
-            if (val && typeof val === 'object' && Array.isArray(val.stops)) {
-              // MapBox legacy stops formatting -> MapLibre step expression array
-              const stops: any[] = val.stops;
-              const stepExpr: any[] = ['step', ['zoom']];
-              if (stops.length > 0) {
-                stepExpr.push(convertToExpression(stops[0][1]));
-                for (let i = 1; i < stops.length; i++) {
-                  stepExpr.push(stops[i][0]); // zoom level
-                  stepExpr.push(convertToExpression(stops[i][1])); // value
-                }
-                return stepExpr;
-              }
-            }
-            return val;
-          };
-
-          const fallbackExpression = convertToExpression(currentTextField);
-
-          this.maplibreMap!.setLayoutProperty(layer.id, 'text-field', [
-            'case',
-            ['==', ['get', 'name_en'], 'Azad Kashmir'], 'Pakistan Occupied Kashmir (PoK)',
-            ['==', ['get', 'name'], 'Azad Kashmir'], 'Pakistan Occupied Kashmir (PoK)',
-            ['==', ['get', 'name_en'], 'Gilgit-Baltistan'], 'Gilgit-Baltistan (PoK)',
-            ['==', ['get', 'name'], 'Gilgit-Baltistan'], 'Gilgit-Baltistan (PoK)',
-            ['==', ['get', 'name_en'], 'Zangnan'], 'Arunachal Pradesh',
-            ['==', ['get', 'name'], 'Zangnan'], 'Arunachal Pradesh',
-            ['==', ['get', 'name_en'], 'Akesai Qin'], 'Aksai Chin',
-            ['==', ['get', 'name'], '阿克赛钦'], 'Aksai Chin',
-            ['==', ['get', 'name_en'], 'Bangong Co'], 'Pangong Tso',
-            ['==', ['get', 'name'], '班公错'], 'Pangong Tso',
-            ['==', ['get', 'name_en'], 'Galwan He'], 'Galwan Valley',
-            ['==', ['get', 'name'], '加勒万河'], 'Galwan Valley',
-            fallbackExpression
-          ]);
-        }
-      });
-    } catch (e) {
-      // Ignore exceptions for specific style modifications
-    }
-  }
 
   public destroy(): void {
     if (this.moveTimeoutId) {

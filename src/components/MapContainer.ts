@@ -35,7 +35,10 @@ import type { PositiveGeoEvent } from '@/services/positive-events-geo';
 import type { KindnessPoint } from '@/services/kindness-data';
 import type { HappinessData } from '@/services/happiness-data';
 import type { SpeciesRecovery } from '@/services/conservation-data';
+
 import type { RenewableInstallation } from '@/services/renewable-installations';
+import type { AqiStation } from '@/services/india-aqi';
+import type { EezPolygon } from '@/services/india-eez';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
 export type MapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
@@ -370,7 +373,18 @@ export class MapContainer {
     if (this.useDeckGL) {
       this.deckGLMap?.setRenewableInstallations(installations);
     }
-    // SVG map does not support renewable installations layer
+  }
+
+  public setAqiData(stations: AqiStation[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setAqiData(stations);
+    }
+  }
+
+  public setEezData(eez: EezPolygon): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setEezData(eez);
+    }
   }
 
   public updateHotspotActivity(news: NewsItem[]): void {

@@ -111,8 +111,12 @@ import { fetchAllPositiveTopicIntelligence } from '@/services/gdelt-intel';
 import { fetchPositiveGeoEvents, geocodePositiveNewsItems } from '@/services/positive-events-geo';
 import { fetchKindnessData } from '@/services/kindness-data';
 import { getPersistentCache, setPersistentCache } from '@/services/persistent-cache';
+import { fetchCpcbAqi } from '@/services/india-aqi';
+import { fetchIndiaEez } from '@/services/india-eez';
 
 const CYBER_LAYER_ENABLED = import.meta.env.VITE_ENABLE_CYBER_LAYER === 'true';
+
+import { getContext } from '@/contexts';
 
 export interface DataLoaderCallbacks {
   renderCriticalBanner: (postures: TheaterPostureSummary[]) => void;
@@ -128,16 +132,16 @@ export class DataLoaderManager implements AppModule {
     this.applyTimeRangeFilterToNewsPanels();
   }, 120);
 
-  public updateSearchIndex: () => void = () => {};
+  public updateSearchIndex: () => void = () => { };
 
   constructor(ctx: AppContext, callbacks: DataLoaderCallbacks) {
     this.ctx = ctx;
     this.callbacks = callbacks;
   }
 
-  init(): void {}
+  init(): void { }
 
-  destroy(): void {}
+  destroy(): void { }
 
   private shouldShowIntelligenceNotifications(): boolean {
     return !this.ctx.isMobile && !!this.ctx.findingsBadge?.isPopupEnabled();
@@ -228,6 +232,8 @@ export class DataLoaderManager implements AppModule {
 
     if (SITE_VARIANT === 'full') tasks.push({ name: 'firms', task: runGuarded('firms', () => this.loadFirmsData()) });
     if (this.ctx.mapLayers.natural) tasks.push({ name: 'natural', task: runGuarded('natural', () => this.loadNatural()) });
+    if (this.ctx.mapLayers.aqi) tasks.push({ name: 'aqi', task: runGuarded('aqi', () => this.loadAqiData()) });
+    if (this.ctx.mapLayers.eez) tasks.push({ name: 'eez', task: runGuarded('eez', () => this.loadEezData()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.weather) tasks.push({ name: 'weather', task: runGuarded('weather', () => this.loadWeatherAlerts()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.ais) tasks.push({ name: 'ais', task: runGuarded('ais', () => this.loadAisSignals()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.cables) tasks.push({ name: 'cables', task: runGuarded('cables', () => this.loadCableActivity()) });
@@ -259,6 +265,12 @@ export class DataLoaderManager implements AppModule {
       switch (layer) {
         case 'natural':
           await this.loadNatural();
+          break;
+        case 'aqi':
+          await this.loadAqiData();
+          break;
+        case 'eez':
+          await this.loadEezData();
           break;
         case 'fires':
           await this.loadFirmsData();
@@ -521,12 +533,17 @@ export class DataLoaderManager implements AppModule {
   }
 
   async loadNews(): Promise<void> {
+    const context = getContext();
+    const contextualFeeds = context.feedOverrides
+      ? { ...FEEDS, ...context.feedOverrides }
+      : FEEDS;
+
     // Reset happy variant accumulator for fresh pipeline run
     if (SITE_VARIANT === 'happy') {
       this.ctx.happyAllItems = [];
     }
 
-    const categories = Object.entries(FEEDS)
+    const categories = Object.entries(contextualFeeds)
       .filter((entry): entry is [string, typeof FEEDS[keyof typeof FEEDS]] => Array.isArray(entry[1]) && entry[1].length > 0)
       .map(([key, feeds]) => ({ key, feeds }));
 
@@ -738,6 +755,26 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
+  async loadAqiData(): Promise<void> {
+    try {
+      const data = await fetchCpcbAqi();
+      this.ctx.map?.setAqiData(data);
+      this.ctx.statusPanel?.updateApi('CPCB AQI', { status: 'ok' });
+    } catch (e) {
+      this.ctx.statusPanel?.updateApi('CPCB AQI', { status: 'error' });
+    }
+  }
+
+  async loadEezData(): Promise<void> {
+    try {
+      const eez = await fetchIndiaEez();
+      this.ctx.map?.setEezData(eez);
+      this.ctx.statusPanel?.updateApi('Maritime EEZ', { status: 'ok' });
+    } catch (e) {
+      this.ctx.statusPanel?.updateApi('Maritime EEZ', { status: 'error' });
+    }
+  }
+
   async loadNatural(): Promise<void> {
     const [earthquakeResult, eonetResult] = await Promise.allSettled([
       fetchEarthquakes(),
@@ -941,7 +978,7 @@ export class DataLoaderManager implements AppModule {
         };
         fetchUSNIFleetReport().then((report) => {
           if (report) this.ctx.intelligenceCache.usniFleet = report;
-        }).catch(() => {});
+        }).catch(() => { });
         ingestFlights(flightData.flights);
         ingestVessels(vesselData.vessels);
         ingestMilitaryForCII(flightData.flights, vesselData.vessels);
@@ -1332,7 +1369,7 @@ export class DataLoaderManager implements AppModule {
       };
       fetchUSNIFleetReport().then((report) => {
         if (report) this.ctx.intelligenceCache.usniFleet = report;
-      }).catch(() => {});
+      }).catch(() => { });
       this.ctx.map?.setMilitaryFlights(flightData.flights, flightData.clusters);
       this.ctx.map?.setMilitaryVessels(vesselData.vessels, vesselData.clusters);
       ingestFlights(flightData.flights);
@@ -1803,7 +1840,7 @@ export class DataLoaderManager implements AppModule {
     setPersistentCache(
       DataLoaderManager.HAPPY_ITEMS_CACHE_KEY,
       this.ctx.happyAllItems.map(item => ({ ...item, pubDate: item.pubDate.getTime() }))
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   private async loadPositiveEvents(): Promise<void> {

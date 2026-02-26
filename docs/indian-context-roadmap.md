@@ -1,83 +1,74 @@
-# Indian Context Roadmap & Additions
+# World Monitor: Indian Context OS Roadmap & Architecture
 
-This document serves as the central hub for all modifications, fixes, and planned feature integrations tailored specifically to the geopolitical, demographic, and informational context of India within the World Monitor application.
-
----
-
-## 1. Modifications & Fixes Implemented
-
-### 1.1. Sovereignty Map Geometry
-The default UN/Carto map geometry depicts the borders of India with dashed "disputed" lines masking regions like Pakistan Occupied Kashmir (PoK), Aksai Chin, and Arunachal Pradesh. 
-* **Fix**: Implemented a top-level `GeoJsonLayer` using the official Survey of India geographic coordinate boundaries. 
-* **Fix**: Muted MapLibre's internal `admin_level` layers and native `disputed` boundary lines via `hideDisputedMapboxBorders()` to provide a clean, unified presentation.
-
-### 1.2. Map Label Engine Overrides
-The base vector tiles intrinsically label regions under Chinese or Pakistani vernacular.
-* **Fix**: Implemented a dynamic style interception hook (`renameDisputedMapboxLabels()`) that natively rewrites MapLibre `text-field` properties on the client side without breaking the original Carto `{name_en}` string interpolation mappings.
-* **Result**: "Azad Kashmir" reads as "Pakistan Occupied Kashmir (PoK)", "Zangnan" reads as "Arunachal Pradesh", etc.
-
-### 1.3. Naming Context Reference
-For a comprehensive breakdown of the historical terminology mapped out in our spatial label interceptor, refer to the local taxonomy document:
-👉 [Indian Placenames Context](./indian-placenames-context.md)
+This document serves as the central hub for all architectural changes, executed integrations, and the long-term roadmap tailored for deploying World Monitor as a comprehensive Geopolitical Intelligence OS within the Indian theater.
 
 ---
 
-## 2. Proposed Feature Additions (Indian Context)
+## 1. Strategic Direction & Product Identity
+Our objective involves evolving World Monitor from an open civic data visualization tool into a serious **Strategic Geopolitical OS & National Infrastructure Monitor**. 
 
-To decrease reliance on Western news aggregators and focus on authentic domestic reporting and data analysis, the following technical integrations are proposed for the World Monitor system:
+This transition relies heavily upon:
+* **Data Integrity**: Replacing western aggregators with high-fidelity, sovereign data sources (e.g., CPCB APIs, ISRO datasets, OGD India, JNPT port statistics).
+* **Real-time Architecture**: Moving from bulky client-side parsing to a mature backend pipeline (Websockets, Redis caching, Node.js gateways).
+* **Modular Decoupling**: Abstracting hardcoded regional boundaries, geopolitics, and news APIs into a dynamic `Context Engine` capable of loading distinct geopolitical profiles.
 
-### 2.1. Domestic News & RSS Integrations
-Instead of piping generic world news, we can ingest real-time RSS feeds from premier Indian journalism and news agency sources into the map's chronological ticker:
-* **Press Trust of India (PTI)**: The premier domestic news agency.
-* **Asian News International (ANI)**: For video and breaking political multimedia.
-* **The Hindu & Hindustan Times**: High-quality geopolitical and domestic reporting feeds.
+---
 
-### 2.2. Indian Think-Tank Geopolitical Feeds
-Plugging into leading strategic research platforms opens avenues for mapping deep-dive analytical metrics rather than just breaking news:
-* **Observer Research Foundation (ORF)**: One of India's leading think tanks emphasizing foreign policy, diplomacy, and global strategy. We can ingest their publications via feed XMLs.
-* **MP-IDSA (Manohar Parrikar Institute for Defence Studies and Analyses)**: Top-tier military, strategic, and border geopolitical research.
-* **Centre for Policy Research (CPR)**: Regional socio-economic strategy insights.
+## 2. Phase 1 Executions: Context Engine Architecture
 
-### 2.3. Data.gov.in (OGD Platform) & NDMA Live Data APIs
-India's Open Government Data (OGD) Platform offers thousands of open REST APIs. We can natively graph:
-* **Live Environmental Metrics**: Real-time Air Quality Index (AQI) from the Central Pollution Control Board (CPCB) mapped onto major cities using `ScatterplotLayers`.
-* **Disaster Management Alerts**: Integrate the **SACHET National Disaster Alert Portal API** via CAP XML feeds. This system pushes out localized alerts from the National Disaster Management Authority (NDMA) to map exact regions affected by cyclones, monsoons, and droughts.
+### 2.1. The Context Engine Upgrade
+To avoid long-term tech debt and geopolitical compliance issues on global app stores (Apple/Google), we deliberately replaced hardcoded boundary tweaks with a modular `Context Engine`. 
 
-### 2.4. Indian Financial Markets (BSE/NSE)
-Instead of global indices, prioritize India's economic performance on the dashboard:
-* **Stock Market APIs**: Utilize platforms like the `IndianAPI.in` REST service or `Breeze Trading API` to pull live NIFTY 50 and Sensex tickers.
-* **Financial News**: Anchor the "Business News" section to the `LiveMint API` or `NewsData.io India Business API` instead of generic western Bloomberg feeds.
+The core application now natively supports dynamic context injection:
+```ts
+// Loading the Indian Profile injects specific sovereign geometry and feeds
+loadContext("india"); 
+```
+* **Geometry**: Replaces the UN Carto basemap with official Survey of India boundary parameters.
+* **Label Overrides**: Intercepts MapLibre vector text-fields at runtime, rewriting "Azad Kashmir" to "Pakistan Occupied Kashmir (PoK)" and "Zangnan" to "Arunachal Pradesh" without corrupting the underlying dataset.
 
-### 2.5. Real-time Global Flight & Shipping Trackers
-To enhance the global monitoring aspect, we can expand from delayed flights to a fully live, sortable global transportation net:
-* **Global Flight tracking**: Integrate with the **Aviationstack API** or **AirLabs Flight Radar API** to stream live ADS-B coordinate feeds globally.
-   * *Feature*: Add a UI filter panel to sort arrays by `departure_airport` or `destination_airport` (focusing heavily on routing out of BOM/DEL/BLR hubs).
-* **Live Maritime & Shipping (AIS) tracking**: Integrate with **VesselFinder AIS API** or **AISStream.io** (free websocket) to plot live maritime global traffic across the oceans.
-   * *Feature*: Render different classes of vessels (tankers, cargo, military transit) dynamically on a new `DeckGL` layer.
+### 2.2. Advanced Geocoder Abstraction
+Native OSM search routing struggles with Tier-2 and Tier-3 Indian localization. We mapped an `IndiaGeocoder` interface that delegates searches directly to the **MapmyIndia (Mappls)** or **Ola Maps Geocoding APIs**, allowing precise pinpointing of regional landmarks and postal codes.
 
-### 2.6. India's UN-Standard Maritime Boundaries (UNCLOS)
-The current UN Carto maps often fail to adequately visualize the total reach of India's sea control. To remedy this, we can draw data from the UN Convention on the Law of the Sea (UNCLOS) datasets:
-* **Exclusive Economic Zone (EEZ)**: India commands over 2.02 million sq km of EEZ. We can fetch and draw a transparent `GeoJson Polygon Layer` that outlines the 200 nautical mile boundary tracing India's coastline. 
-* **Territorial Waters**: Plot the 12 nautical mile sovereign sea region boundary.
+### 2.3. Domestic News & Intelligence Adapter
+Instead of hard-parsing generic global RSS feeds, we implemented a unified `NewsAdapter` factory. Live feed injections are actively sourced from premier domestic entities:
+* **News Agencies**: PTI (Press Trust of India) and ANI endpoints.
+* **Finance**: LiveMint, Business Standard.
+* **Geopolitics**: The Hindu, Indian Express.
+* **Think Tanks**: The architecture now natively supports ingesting publication metadata from the Observer Research Foundation (ORF) and Manohar Parrikar Institute for Defence Studies and Analyses (MP-IDSA). Future iterations will introduce local LLM-assisted NLP sentiment scoring mapping directly onto target geographic sectors.
 
-### 2.7. Economic Indicators (Factories, Trade, & Services)
-To provide deep insights into India's internal economic engines, we can integrate the dashboard widgets with macro-economic REST APIs:
-* **Factories & Manufacturing**: Integrate datasets from the **Ministry of Statistics and Programme Implementation (MoSPI)** to track the Index of Industrial Production (IIP).
-* **Trade & Export**: Hook into the Open Government Data (OGD) platform or Ministry of Commerce APIs to populate the "Trade Policy" and "Supply Chain" widgets with India's monthly export/import data.
-* **Services Sector**: Integrate the core Indian PMI (Purchasing Managers' Index) services data into the broader Economic Indicators panel.
+### 2.4. Environmental Risk Modeling & NDMA Integrations
+* **Indian AQI Polygons**: Replaced manual city polling with bulk CPCB API fetching. AQI data now scales dynamically via `ScatterplotLayer` rendering, allowing clear heatmap visualization across the subcontinent.
+* **UNCLOS Maritime Sovereignty**: We generated a transparent geometric representation of India's robust 2.02 million sq km **Exclusive Economic Zone (EEZ)** tracing the 200 nautical mile ocean boundaries, rendering via Deck.gl `GeoJsonLayers`.
 
-### 2.8. Advanced Map Search & Geocoding (Tier 2/3 Cities)
-The native Mapbox/OSM geocoder occasionally fails to locate specific Tier-2 and Tier-3 Indian cities (e.g., Dehradun) or misinterprets Indian address formatting.
-* **Solution**: Replace the native map search bar with the **MapmyIndia (Mappls) Geocoding API** or the **Ola Maps Geocoding API**. These domestic APIs are hyper-specialized for pinpointing Indian house numbers, landmarks, pin-codes, and sub-districts with high precision.
+### 2.5. Economic Machinery & Strategic POIs
+Instead of displaying global stock indices exclusively, the Map layers are refactored for Indian Economic Indicators:
+* The **Bombay Stock Exchange (BSE)** at Dalal Street has been hardcoded alongside the NSE.
+* Strategic mapping instances now identify critical technical infrastructure: **ISRO launchpad facilities**, **DRDO Headquarters**, and primary shipping chokepoints/ports including **Jawaharlal Nehru Port Trust (JNPT)** and Mundra.
 
-### 2.9. Expanding Map POIs (Points of Interest)
-* The map currently plots the National Stock Exchange (NSE) and Reserve Bank of India (RBI) via local configs (e.g., `src/config/finance-geo.ts`).
-* **Addition**: We will manually inject the **Bombay Stock Exchange (BSE)** at Dalal Street, Mumbai, ensuring it renders alongside the NSE.
-* **Addition**: Expand the local database to map India's vital infrastructure: ISRO launchpads, DRDO headquarters, and strategic maritime ports (JNPT, Mundra, Cochin).
+---
 
-### 2.10. Dashboard Widget Overhaul for India
-The overarching World Monitor UI grid can be heavily localized for the Indian theater:
-* **Live Webcams**: Render feeds from major Indian highways, metropolitan intersections (Mumbai/Delhi traffic cameras), or key landmarks.
-* **Country Instability / Conflict**: Filter the UCDP event overlays to focus specifically on South Asian localized tensions, border skirmishes (LAC/LoC), or regional disturbances.
-* **Infrastructure Cascade**: Map India's optical fiber network (BharatNet), major coastal Adani/Government ports, and the national power grid using `GeoJson` LineString layers.
-* **Climate Anomalies & Fires**: Directly tap into the Indian Meteorological Department (IMD) to display heatwave warnings, drought indices, and monsoon progression.
+## 3. The 12-Month Execution Roadmap
+
+### Q2: Maritime & NLP Intelligence Integration
+* **Maritime Live AIS Architecture**: We will ingest high-volume Live AIS (VesselFinder/AISStream) datasets and visualize shipping density across the Indian Ocean Region (IOR) using DeckGL `GPUGridLayers` to avoid client-side memory exhaustion.
+* **NLP Intelligence Tagging**: Automating topic classification (LAC, IOR, BRICS, Quad) from our Think Tank feeds, plotting these insights conditionally over geographic trigger regions.
+* **Supply Chain Analytics**: Integrating monthly import/export open APIs from the Ministry of Commerce to track trade flows, semiconductor dependence, and critical mineral restrictions.
+
+### Q3: Heavy Infrastructure & Conflict Tracking
+* **Power Grid Tracking**: Mapping the domestic transmission corridors (POSOCO), BharatNet fiber deployments, and critical submarine cable landing sites.
+* **ISRO Satellite Tracking**: A live TLE tracking overlay using Celestrak to monitor active satellite passes alongside the launch timeline.
+* **UCDP Localized Conflict Filtering**: Tailoring conflict mapping exclusively to South Asian regional disturbances, border skirmishes, and Line of Actual Control (LAC/LoC) escalations overlaying historical timeline progression.
+
+### Q4: AI Predictive Analytics & Hardened Architecture
+* **Historical Playback / Replay Mode**: Enabling longitudinal timeline scrolling for past political crises.
+* **AI Anomaly Detection**: Real-time correlation between Indian stock market flash-crashes, regional NDMA disaster alerts, and localized social-unrest protest clusters.
+* **Mobile / Dedicated Operations Terminal Optimization**.
+
+---
+
+## 4. Compliance & Risk Mitigation Addendum
+To maneuver the sensitive domain of international border data safely:
+* Keep disputed lines as “claimed by” language when toggling out of the core Indian Context Mode.
+* Avoid publishing restricted national defense or nuclear coordinates not currently available on open-access platforms (Native OSM).
+* The contextual scaling ensures the architecture can effortlessly spin up localized `neutral`, `global`, or parallel geopolitical instances moving forward without requiring deep logic rewrites.
