@@ -951,6 +951,9 @@ export class DeckGLMap {
     const filteredMilitaryVesselClusters = this.filterMilitaryVesselClustersByTime(this.militaryVesselClusters);
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
 
+    // Official India Boundaries Override
+    layers.push(this.createIndiaBoundariesLayer());
+
     // Undersea cables layer
     if (mapLayers.cables) {
       layers.push(this.createCablesLayer());
@@ -1283,6 +1286,21 @@ export class DeckGLMap {
     this.lastPipelineHighlightSignature = highlightSignature;
     this.layerCache.set(cacheKey, layer);
     return layer;
+  }
+
+  private createIndiaBoundariesLayer(): GeoJsonLayer | false {
+    if (!this.maplibreMap || SITE_VARIANT === 'happy') return false;
+    const isLight = getCurrentTheme() === 'light';
+    return new GeoJsonLayer({
+      id: 'india-boundaries-layer',
+      data: '/data/india-boundaries.geojson',
+      filled: false,
+      stroked: true,
+      getLineColor: isLight ? [50, 50, 50, 200] : [200, 200, 200, 200],
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      pickable: false,
+    });
   }
 
   private createConflictZonesLayer(): GeoJsonLayer {
