@@ -94,6 +94,18 @@ import type { EezPolygon } from '@/services/india-eez';
 import { getCountriesGeoJson, getCountryAtCoordinates } from '@/services/country-geometry';
 import type { FeatureCollection, Geometry } from 'geojson';
 
+// Pre-fetch India boundaries GeoJSON at module load for instant rendering
+let _cachedIndiaBoundaries: FeatureCollection | null = null;
+const _indiaBoundariesPromise: Promise<FeatureCollection | null> = (() => {
+  const ctx = getContext();
+  if (!ctx.hasGeometryOverrides) return Promise.resolve(null);
+  return fetch('/data/india-boundaries.geojson')
+    .then(r => r.ok ? r.json() as Promise<FeatureCollection> : null)
+    .then(data => { _cachedIndiaBoundaries = data; return data; })
+    .catch(() => null);
+})();
+void _indiaBoundariesPromise; // suppress unused warning
+
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
 export type DeckMapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
 type MapInteractionMode = 'flat' | '3d';
@@ -153,6 +165,95 @@ const DARK_STYLE = SITE_VARIANT === 'happy'
 const LIGHT_STYLE = SITE_VARIANT === 'happy'
   ? '/map-styles/happy-light.json'
   : 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+
+// ── Basemap Style System ──────────────────────────────────────────────────────
+type BasemapStyleId = 'dark' | 'satellite' | 'hybrid' | 'terrain' | 'light';
+
+interface BasemapStyleDef {
+  id: BasemapStyleId;
+  label: string;
+  icon: string;   // emoji or short icon
+  attribution: string;
+}
+
+const BASEMAP_STYLES: BasemapStyleDef[] = [
+  { id: 'dark', label: 'Dark', icon: '🌑', attribution: '© <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' },
+  { id: 'satellite', label: 'Satellite', icon: '🛰️', attribution: '© <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics' },
+  { id: 'hybrid', label: 'Hybrid', icon: '🗺️', attribution: '© <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' },
+  { id: 'terrain', label: 'Terrain', icon: '⛰️', attribution: '© <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' },
+  { id: 'light', label: 'Light', icon: '☀️', attribution: '© <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' },
+];
+
+/** Build a MapLibre style JSON for raster XYZ tiles */
+function buildRasterStyle(tileUrl: string, tileSize = 256, maxzoom = 19): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      'raster-tiles': {
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize,
+        maxzoom,
+      },
+    },
+    layers: [
+      {
+        id: 'raster-layer',
+        type: 'raster',
+        source: 'raster-tiles',
+        minzoom: 0,
+        maxzoom: 22,
+      },
+    ],
+  } as maplibregl.StyleSpecification;
+}
+
+/** Build a hybrid style: raster satellite tiles + vector label overlay */
+function buildHybridStyle(): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      'satellite-tiles': {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256,
+        maxzoom: 19,
+      },
+      'carto-labels': {
+        type: 'raster',
+        tiles: ['https://basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png'],
+        tileSize: 256,
+        maxzoom: 20,
+      },
+    },
+    layers: [
+      {
+        id: 'satellite-layer',
+        type: 'raster',
+        source: 'satellite-tiles',
+        minzoom: 0,
+        maxzoom: 22,
+      },
+      {
+        id: 'labels-layer',
+        type: 'raster',
+        source: 'carto-labels',
+        minzoom: 0,
+        maxzoom: 22,
+      },
+    ],
+  } as maplibregl.StyleSpecification;
+}
+
+function getBasemapStyle(id: BasemapStyleId): string | maplibregl.StyleSpecification {
+  switch (id) {
+    case 'dark': return DARK_STYLE;
+    case 'light': return LIGHT_STYLE;
+    case 'satellite': return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    case 'hybrid': return buildHybridStyle();
+    case 'terrain': return buildRasterStyle('https://tile.opentopomap.org/{z}/{x}/{y}.png', 256, 17);
+  }
+}
 
 // Zoom thresholds for layer visibility and labels (matches old Map.ts)
 // Zoom-dependent layer visibility and labels
@@ -346,6 +447,7 @@ export class DeckGLMap {
   private debouncedRebuildLayers: () => void;
   private rafUpdateLayers: () => void;
   private moveTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private activeBasemap: BasemapStyleId = 'dark';
 
   constructor(container: HTMLElement, initialState: DeckMapState) {
     this.container = container;
@@ -368,7 +470,10 @@ export class DeckGLMap {
     window.addEventListener('theme-changed', (e: Event) => {
       const theme = (e as CustomEvent).detail?.theme as 'dark' | 'light';
       if (theme) {
-        this.switchBasemap(theme);
+        // Only auto-switch if currently on a vector style (dark/light)
+        if (this.activeBasemap === 'dark' || this.activeBasemap === 'light') {
+          this.setBasemapStyle(theme === 'light' ? 'light' : 'dark');
+        }
         this.render(); // Rebuilds Deck.GL layers with new theme-aware colors
       }
     });
@@ -389,6 +494,7 @@ export class DeckGLMap {
     this.createTimeSlider();
     this.createLayerToggles();
     this.createLegend();
+    this.createBasemapSwitcher();
   }
 
   private setupDOM(): void {
@@ -1312,10 +1418,12 @@ export class DeckGLMap {
     const context = getContext();
     if (!context.hasGeometryOverrides) return false;
 
+    // Use pre-fetched GeoJSON for instant render; fallback to URL if cache miss
+    const data = _cachedIndiaBoundaries ?? '/data/india-boundaries.geojson';
     const isLight = getCurrentTheme() === 'light';
     return new GeoJsonLayer({
       id: 'india-boundaries-layer',
-      data: '/data/india-boundaries.geojson',
+      data,
       filled: false,
       stroked: true,
       getLineColor: isLight ? [50, 50, 50, 200] : [200, 200, 200, 200],
@@ -4305,21 +4413,87 @@ export class DeckGLMap {
   }
 
   private switchBasemap(theme: 'dark' | 'light'): void {
+    this.setBasemapStyle(theme === 'light' ? 'light' : 'dark');
+  }
+
+  /** Switch to any basemap style by ID */
+  private setBasemapStyle(styleId: BasemapStyleId): void {
     if (!this.maplibreMap) return;
-    this.maplibreMap.setStyle(theme === 'light' ? LIGHT_STYLE : DARK_STYLE);
+    this.activeBasemap = styleId;
+    const style = getBasemapStyle(styleId);
+    this.maplibreMap.setStyle(style);
     // setStyle() replaces all sources/layers — reset guard so country layers are re-added
     this.countryGeoJsonLoaded = false;
     this.maplibreMap.once('style.load', () => {
-      const context = getContext();
-      context.applyGeometry(this.maplibreMap!);
-      context.applyLabels(this.maplibreMap!);
-
+      // Only apply vector context overlays on vector basemaps
+      if (styleId === 'dark' || styleId === 'light') {
+        const context = getContext();
+        context.applyGeometry(this.maplibreMap!);
+        context.applyLabels(this.maplibreMap!);
+      }
+      const theme = getCurrentTheme();
       this.loadCountryBoundaries();
       this.updateCountryLayerPaint(theme);
       // Re-render deck.gl overlay after style swap — interleaved layers need
       // the new MapLibre style to be loaded before they can re-insert.
       this.render();
     });
+
+    // Update attribution
+    const def = BASEMAP_STYLES.find(s => s.id === styleId);
+    const attrEl = this.container.querySelector('.map-attribution');
+    if (attrEl && def) attrEl.innerHTML = def.attribution;
+
+    // Update active button in switcher
+    this.container.querySelectorAll('.basemap-option').forEach(el => {
+      (el as HTMLElement).classList.toggle('active', (el as HTMLElement).dataset.style === styleId);
+    });
+  }
+
+  /** Create the floating basemap style switcher control */
+  private createBasemapSwitcher(): void {
+    const switcher = document.createElement('div');
+    switcher.className = 'basemap-switcher';
+
+    // Collapsed trigger
+    const trigger = document.createElement('button');
+    trigger.className = 'basemap-trigger';
+    trigger.innerHTML = '<span class="basemap-trigger-icon">🗺️</span>';
+    trigger.title = 'Change map style';
+    switcher.appendChild(trigger);
+
+    // Expanded panel
+    const panel = document.createElement('div');
+    panel.className = 'basemap-panel';
+
+    BASEMAP_STYLES.forEach(def => {
+      const opt = document.createElement('button');
+      opt.className = `basemap-option${def.id === this.activeBasemap ? ' active' : ''}`;
+      opt.dataset.style = def.id;
+      opt.title = def.label;
+      opt.innerHTML = `<span class="basemap-option-icon">${def.icon}</span><span class="basemap-option-label">${def.label}</span>`;
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.setBasemapStyle(def.id);
+      });
+      panel.appendChild(opt);
+    });
+
+    switcher.appendChild(panel);
+
+    // Toggle expand/collapse
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switcher.classList.toggle('expanded');
+    });
+
+    // Close panel when clicking outside
+    document.addEventListener('click', () => {
+      switcher.classList.remove('expanded');
+    });
+    switcher.addEventListener('click', (e) => e.stopPropagation());
+
+    this.container.appendChild(switcher);
   }
 
   private updateCountryLayerPaint(theme: 'dark' | 'light'): void {

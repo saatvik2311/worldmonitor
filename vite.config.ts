@@ -300,50 +300,50 @@ function sebufApiPlugin(): Plugin {
       givingServerMod, givingHandlerMod,
       tradeServerMod, tradeHandlerMod,
     ] = await Promise.all([
-        import('./server/router'),
-        import('./server/cors'),
-        import('./server/error-mapper'),
-        import('./src/generated/server/worldmonitor/seismology/v1/service_server'),
-        import('./server/worldmonitor/seismology/v1/handler'),
-        import('./src/generated/server/worldmonitor/wildfire/v1/service_server'),
-        import('./server/worldmonitor/wildfire/v1/handler'),
-        import('./src/generated/server/worldmonitor/climate/v1/service_server'),
-        import('./server/worldmonitor/climate/v1/handler'),
-        import('./src/generated/server/worldmonitor/prediction/v1/service_server'),
-        import('./server/worldmonitor/prediction/v1/handler'),
-        import('./src/generated/server/worldmonitor/displacement/v1/service_server'),
-        import('./server/worldmonitor/displacement/v1/handler'),
-        import('./src/generated/server/worldmonitor/aviation/v1/service_server'),
-        import('./server/worldmonitor/aviation/v1/handler'),
-        import('./src/generated/server/worldmonitor/research/v1/service_server'),
-        import('./server/worldmonitor/research/v1/handler'),
-        import('./src/generated/server/worldmonitor/unrest/v1/service_server'),
-        import('./server/worldmonitor/unrest/v1/handler'),
-        import('./src/generated/server/worldmonitor/conflict/v1/service_server'),
-        import('./server/worldmonitor/conflict/v1/handler'),
-        import('./src/generated/server/worldmonitor/maritime/v1/service_server'),
-        import('./server/worldmonitor/maritime/v1/handler'),
-        import('./src/generated/server/worldmonitor/cyber/v1/service_server'),
-        import('./server/worldmonitor/cyber/v1/handler'),
-        import('./src/generated/server/worldmonitor/economic/v1/service_server'),
-        import('./server/worldmonitor/economic/v1/handler'),
-        import('./src/generated/server/worldmonitor/infrastructure/v1/service_server'),
-        import('./server/worldmonitor/infrastructure/v1/handler'),
-        import('./src/generated/server/worldmonitor/market/v1/service_server'),
-        import('./server/worldmonitor/market/v1/handler'),
-        import('./src/generated/server/worldmonitor/news/v1/service_server'),
-        import('./server/worldmonitor/news/v1/handler'),
-        import('./src/generated/server/worldmonitor/intelligence/v1/service_server'),
-        import('./server/worldmonitor/intelligence/v1/handler'),
-        import('./src/generated/server/worldmonitor/military/v1/service_server'),
-        import('./server/worldmonitor/military/v1/handler'),
-        import('./src/generated/server/worldmonitor/positive_events/v1/service_server'),
-        import('./server/worldmonitor/positive-events/v1/handler'),
-        import('./src/generated/server/worldmonitor/giving/v1/service_server'),
-        import('./server/worldmonitor/giving/v1/handler'),
-        import('./src/generated/server/worldmonitor/trade/v1/service_server'),
-        import('./server/worldmonitor/trade/v1/handler'),
-      ]);
+      import('./server/router'),
+      import('./server/cors'),
+      import('./server/error-mapper'),
+      import('./src/generated/server/worldmonitor/seismology/v1/service_server'),
+      import('./server/worldmonitor/seismology/v1/handler'),
+      import('./src/generated/server/worldmonitor/wildfire/v1/service_server'),
+      import('./server/worldmonitor/wildfire/v1/handler'),
+      import('./src/generated/server/worldmonitor/climate/v1/service_server'),
+      import('./server/worldmonitor/climate/v1/handler'),
+      import('./src/generated/server/worldmonitor/prediction/v1/service_server'),
+      import('./server/worldmonitor/prediction/v1/handler'),
+      import('./src/generated/server/worldmonitor/displacement/v1/service_server'),
+      import('./server/worldmonitor/displacement/v1/handler'),
+      import('./src/generated/server/worldmonitor/aviation/v1/service_server'),
+      import('./server/worldmonitor/aviation/v1/handler'),
+      import('./src/generated/server/worldmonitor/research/v1/service_server'),
+      import('./server/worldmonitor/research/v1/handler'),
+      import('./src/generated/server/worldmonitor/unrest/v1/service_server'),
+      import('./server/worldmonitor/unrest/v1/handler'),
+      import('./src/generated/server/worldmonitor/conflict/v1/service_server'),
+      import('./server/worldmonitor/conflict/v1/handler'),
+      import('./src/generated/server/worldmonitor/maritime/v1/service_server'),
+      import('./server/worldmonitor/maritime/v1/handler'),
+      import('./src/generated/server/worldmonitor/cyber/v1/service_server'),
+      import('./server/worldmonitor/cyber/v1/handler'),
+      import('./src/generated/server/worldmonitor/economic/v1/service_server'),
+      import('./server/worldmonitor/economic/v1/handler'),
+      import('./src/generated/server/worldmonitor/infrastructure/v1/service_server'),
+      import('./server/worldmonitor/infrastructure/v1/handler'),
+      import('./src/generated/server/worldmonitor/market/v1/service_server'),
+      import('./server/worldmonitor/market/v1/handler'),
+      import('./src/generated/server/worldmonitor/news/v1/service_server'),
+      import('./server/worldmonitor/news/v1/handler'),
+      import('./src/generated/server/worldmonitor/intelligence/v1/service_server'),
+      import('./server/worldmonitor/intelligence/v1/handler'),
+      import('./src/generated/server/worldmonitor/military/v1/service_server'),
+      import('./server/worldmonitor/military/v1/handler'),
+      import('./src/generated/server/worldmonitor/positive_events/v1/service_server'),
+      import('./server/worldmonitor/positive-events/v1/handler'),
+      import('./src/generated/server/worldmonitor/giving/v1/service_server'),
+      import('./server/worldmonitor/giving/v1/handler'),
+      import('./src/generated/server/worldmonitor/trade/v1/service_server'),
+      import('./server/worldmonitor/trade/v1/handler'),
+    ]);
 
     const serverOptions = { onError: errorMod.mapErrorToResponse };
     const allRoutes = [
@@ -664,6 +664,112 @@ function youtubeLivePlugin(): Plugin {
   };
 }
 
+// India Live Feeds Discovery — dev server mirror of api/youtube/india-live-feeds.js
+function indiaLiveFeedsPlugin(): Plugin {
+  const INDIA_CHANNELS = [
+    { handle: '@IndiaToday', label: 'India Today', city: 'New Delhi', category: 'news' },
+    { handle: '@NDTV', label: 'NDTV 24x7', city: 'New Delhi', category: 'news' },
+    { handle: '@NDTVIndia', label: 'NDTV India', city: 'New Delhi', category: 'news' },
+    { handle: '@RepublicWorld', label: 'Republic TV', city: 'Mumbai', category: 'news' },
+    { handle: '@WIONews', label: 'WION', city: 'New Delhi', category: 'news' },
+    { handle: '@DDIndia', label: 'DD India', city: 'New Delhi', category: 'news' },
+    { handle: '@DDNational', label: 'DD National', city: 'New Delhi', category: 'news' },
+    { handle: '@TimesNow', label: 'Times Now', city: 'Mumbai', category: 'news' },
+    { handle: '@CNNNews18', label: 'CNN-News18', city: 'Noida', category: 'news' },
+    { handle: '@News18India', label: 'News18 India', city: 'Noida', category: 'news' },
+    { handle: '@ABPNews', label: 'ABP News', city: 'Noida', category: 'news' },
+    { handle: '@TV9Bharatvarsh', label: 'TV9 Bharatvarsh', city: 'Noida', category: 'news' },
+    { handle: '@ZeeNews', label: 'Zee News', city: 'Noida', category: 'news' },
+    { handle: '@MirrorNowNews', label: 'Mirror Now', city: 'Mumbai', category: 'news' },
+    { handle: '@ETNOWlive', label: 'ET Now', city: 'Mumbai', category: 'business' },
+    { handle: '@CNBCBajar', label: 'CNBC Awaaz', city: 'Mumbai', category: 'business' },
+    { handle: '@LokSabhaTV', label: 'Sansad TV', city: 'New Delhi', category: 'gov' },
+  ];
+
+  let cache: any = null;
+  let cacheTs = 0;
+  const CACHE_TTL = 5 * 60 * 1000;
+
+  async function checkLive(handle: string) {
+    const h = handle.startsWith('@') ? handle : `@${handle}`;
+    try {
+      const res = await fetch(`https://www.youtube.com/${h}/live`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) return null;
+      const html = await res.text();
+      const idx = html.indexOf('"videoDetails"');
+      if (idx === -1) return null;
+      const block = html.substring(idx, idx + 5000);
+      const vid = block.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+      const live = block.match(/"isLive"\s*:\s*true/);
+      if (!vid || !live) return null;
+      const titleM = block.match(/"title":"([^"]+)"/);
+      return {
+        videoId: vid[1],
+        title: titleM ? titleM[1] : null,
+        thumbnail: `https://img.youtube.com/vi/${vid[1]}/mqdefault.jpg`,
+      };
+    } catch { return null; }
+  }
+
+  return {
+    name: 'india-live-feeds',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/youtube/india-live-feeds')) return next();
+
+        if (cache && Date.now() - cacheTs < CACHE_TTL) {
+          const grid = [...cache].sort(() => Math.random() - 0.5).slice(0, 4);
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'public, max-age=300');
+          res.end(JSON.stringify({ grid, all: cache, totalChecked: INDIA_CHANNELS.length, totalVerified: cache.length, cachedAt: new Date(cacheTs).toISOString() }));
+          return;
+        }
+
+        try {
+          const results = await Promise.allSettled(
+            INDIA_CHANNELS.map(async (ch) => {
+              const live = await checkLive(ch.handle);
+              if (!live) return null;
+              return {
+                id: ch.handle.replace('@', '').toLowerCase(),
+                label: ch.label,
+                city: ch.city,
+                category: ch.category,
+                channelHandle: ch.handle,
+                videoId: live.videoId,
+                title: live.title,
+                thumbnail: live.thumbnail,
+                verifiedAt: new Date().toISOString(),
+              };
+            })
+          );
+
+          const verified = results
+            .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value !== null)
+            .map(r => r.value);
+
+          cache = verified;
+          cacheTs = Date.now();
+
+          const grid = [...verified].sort(() => Math.random() - 0.5).slice(0, 4);
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'public, max-age=300');
+          res.end(JSON.stringify({ grid, all: verified, totalChecked: INDIA_CHANNELS.length, totalVerified: verified.length, cachedAt: new Date(cacheTs).toISOString() }));
+        } catch (error: any) {
+          console.error('[india-live-feeds]', error.message);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ grid: [], all: [], error: error.message }));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -673,6 +779,7 @@ export default defineConfig({
     polymarketPlugin(),
     rssProxyPlugin(),
     youtubeLivePlugin(),
+    indiaLiveFeedsPlugin(),
     sebufApiPlugin(),
     brotliPrecompressPlugin(),
     VitePWA({

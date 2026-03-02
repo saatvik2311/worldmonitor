@@ -498,7 +498,8 @@
         "mideast": "MIDEAST",
         "europe": "EUROPE",
         "americas": "AMERICAS",
-        "asia": "ASIA"
+        "asia": "ASIA",
+        "india": "INDIA"
       }
     },
     "monitor": {

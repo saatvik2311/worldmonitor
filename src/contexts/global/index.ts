@@ -7,11 +7,11 @@ export const GlobalContext: GeopoliticalContext = {
     labelOverrides: {},
     hasGeometryOverrides: false,
 
-    applyLabels: (map: maplibregl.Map) => {
+    applyLabels: (_map: maplibregl.Map) => {
         // Standard UN/Carto map labels apply 
     },
 
-    applyGeometry: (map: maplibregl.Map) => {
+    applyGeometry: (_map: maplibregl.Map) => {
         // Standard UN borders apply 
     }
 };

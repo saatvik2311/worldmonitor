@@ -46,6 +46,18 @@ Instead of displaying global stock indices exclusively, the Map layers are refac
 * The **Bombay Stock Exchange (BSE)** at Dalal Street has been hardcoded alongside the NSE.
 * Strategic mapping instances now identify critical technical infrastructure: **ISRO launchpad facilities**, **DRDO Headquarters**, and primary shipping chokepoints/ports including **Jawaharlal Nehru Port Trust (JNPT)** and Mundra.
 
+### 2.6. Dashboard Panel Customization for Indian Context
+The Context Engine now supports **panel-level overrides** for a fully localized dashboard experience:
+* **Live Webcams**: When the India context is active, the default webcam grid displays four Indian strategic cities — **New Delhi** (India Gate), **Mumbai** (Gateway of India), **Varanasi** (Ganges Ghats), and **Kolkata** (Howrah Bridge) — instead of the default global conflict feeds. A new **"South Asia"** region filter in the toolbar allows users to browse all Indian webcam streams.
+* **Panel Name Overrides**: The "Asia-Pacific" panel is relabelled to "India & South Asia" under the India context, reflecting the shifted intelligence focus.
+* **Map Layer Auto-Enable**: AQI heatmap stations and the 200nm EEZ boundary overlay are automatically enabled when the India context loads, without requiring manual layer toggles.
+* **Think Tank Feeds**: The Think Tanks panel injects feeds from **ORF**, **MP-IDSA**, **Carnegie India**, **Takshashila Institution**, and **CSIS India** alongside global think tank sources.
+* **Energy Feeds**: The Energy panel sources from India-specific providers: **ONGC**, **NTPC**, **PowerGrid**, **IOCL**, **NPCIL** nuclear, and India renewables (solar, green hydrogen, IREDA).
+* **India News Feeds**: The Asia-Pacific panel injects **NDTV**, **India Today**, **Scroll.in**, **The Wire**, and **Firstpost** as primary sources, with BBC Asia and Reuters South Asia as global fallbacks.
+
+### 2.7. India Boundary Instant Render
+The 10MB Survey of India sovereign boundary GeoJSON is **pre-fetched at module load** rather than lazy-loaded on first render. This resolves the visible flicker between the base map tiles loading (with UN disputed borders) and the Indian sovereign overlay painting. The boundary now renders simultaneously with the first map frame.
+
 ---
 
 ## 3. The 12-Month Execution Roadmap
@@ -69,6 +81,6 @@ Instead of displaying global stock indices exclusively, the Map layers are refac
 
 ## 4. Compliance & Risk Mitigation Addendum
 To maneuver the sensitive domain of international border data safely:
-* Keep disputed lines as “claimed by” language when toggling out of the core Indian Context Mode.
+* Keep disputed lines as "claimed by" language when toggling out of the core Indian Context Mode.
 * Avoid publishing restricted national defense or nuclear coordinates not currently available on open-access platforms (Native OSM).
 * The contextual scaling ensures the architecture can effortlessly spin up localized `neutral`, `global`, or parallel geopolitical instances moving forward without requiring deep logic rewrites.

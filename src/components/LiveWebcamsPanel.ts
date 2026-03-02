@@ -5,7 +5,7 @@ import { t } from '../services/i18n';
 import { trackWebcamSelected, trackWebcamRegionFiltered } from '@/services/analytics';
 import { getStreamQuality, subscribeStreamQualityChange } from '@/services/ai-flow-settings';
 
-type WebcamRegion = 'middle-east' | 'europe' | 'asia' | 'americas';
+type WebcamRegion = 'middle-east' | 'europe' | 'asia' | 'americas' | 'india';
 
 interface WebcamFeed {
   id: string;
@@ -16,28 +16,47 @@ interface WebcamFeed {
   fallbackVideoId: string;
 }
 
+// Dynamic feed from the India discovery API
+interface IndiaLiveFeed {
+  id: string;
+  label: string;
+  city: string;
+  category: string;
+  channelHandle: string;
+  videoId: string;
+  title: string | null;
+  thumbnail: string;
+  verifiedAt: string;
+}
+
+interface IndiaFeedsResponse {
+  grid: IndiaLiveFeed[];
+  all: IndiaLiveFeed[];
+  totalChecked: number;
+  totalVerified: number;
+  cachedAt: string;
+  error?: string;
+}
+
 // Verified YouTube live stream IDs — validated Feb 2026 via title cross-check.
 // IDs may rotate; update when stale.
 const WEBCAM_FEEDS: WebcamFeed[] = [
   // Middle East — Jerusalem & Tehran adjacent (conflict hotspots)
   { id: 'jerusalem', city: 'Jerusalem', country: 'Israel', region: 'middle-east', channelHandle: '@TheWesternWall', fallbackVideoId: 'UyduhBUpO7Q' },
   { id: 'tehran', city: 'Tehran', country: 'Iran', region: 'middle-east', channelHandle: '@IranHDCams', fallbackVideoId: '-zGuR1qVKrU' },
-  { id: 'tel-aviv', city: 'Tel Aviv', country: 'Israel', region: 'middle-east', channelHandle: '@IsraelLiveCam', fallbackVideoId: '-VLcYT5QBrY' },
-  { id: 'mecca', city: 'Mecca', country: 'Saudi Arabia', region: 'middle-east', channelHandle: '@MakkahLive', fallbackVideoId: 'DEcpmPUbkDQ' },
-  // Europe
-  { id: 'kyiv', city: 'Kyiv', country: 'Ukraine', region: 'europe', channelHandle: '@DWNews', fallbackVideoId: '-Q7FuPINDjA' },
-  { id: 'odessa', city: 'Odessa', country: 'Ukraine', region: 'europe', channelHandle: '@UkraineLiveCam', fallbackVideoId: 'e2gC37ILQmk' },
-  { id: 'paris', city: 'Paris', country: 'France', region: 'europe', channelHandle: '@PalaisIena', fallbackVideoId: 'OzYp4NRZlwQ' },
-  { id: 'st-petersburg', city: 'St. Petersburg', country: 'Russia', region: 'europe', channelHandle: '@SPBLiveCam', fallbackVideoId: 'CjtIYbmVfck' },
-  { id: 'london', city: 'London', country: 'UK', region: 'europe', channelHandle: '@EarthCam', fallbackVideoId: 'Lxqcg1qt0XU' },
+  { id: 'dubai', city: 'Dubai', country: 'UAE', region: 'middle-east', channelHandle: '@DubaiLiveHD', fallbackVideoId: 'bXZZGHIN0s0' },
+  { id: 'istanbul', city: 'Istanbul', country: 'Turkey', region: 'middle-east', channelHandle: '@IstanbulCam', fallbackVideoId: 'HD4EIVEdho4' },
+  { id: 'mecca', city: 'Mecca', country: 'Saudi Arabia', region: 'middle-east', channelHandle: '@alabortt', fallbackVideoId: '-v3bG_eabrc' },
+  // Europe — Conflict \u0026 strategic cities
+  { id: 'kyiv', city: 'Kyiv', country: 'Ukraine', region: 'europe', channelHandle: '@KyivLiveCam', fallbackVideoId: '2cyQPN5iDiI' },
+  { id: 'london', city: 'London', country: 'UK', region: 'europe', channelHandle: '@LondonLiveCam', fallbackVideoId: 'b3EgiKJhXVA' },
+  { id: 'paris', city: 'Paris', country: 'France', region: 'europe', channelHandle: '@ParisLiveCam', fallbackVideoId: 'cFz__TaaMKk' },
+  { id: 'rome', city: 'Rome', country: 'Italy', region: 'europe', channelHandle: '@SkylineWebcamsRome', fallbackVideoId: 'UT0aYKkpHSk' },
   // Americas
-  { id: 'washington', city: 'Washington DC', country: 'USA', region: 'americas', channelHandle: '@AxisCommunications', fallbackVideoId: '1wV9lLe14aU' },
-  { id: 'new-york', city: 'New York', country: 'USA', region: 'americas', channelHandle: '@EarthCam', fallbackVideoId: '4qyZLflp-sI' },
-  { id: 'los-angeles', city: 'Los Angeles', country: 'USA', region: 'americas', channelHandle: '@VeniceVHotel', fallbackVideoId: 'EO_1LWqsCNE' },
-  { id: 'miami', city: 'Miami', country: 'USA', region: 'americas', channelHandle: '@FloridaLiveCams', fallbackVideoId: '5YCajRjvWCg' },
-  // Asia-Pacific — Taipei first (strait hotspot), then Shanghai, Tokyo, Seoul
-  { id: 'taipei', city: 'Taipei', country: 'Taiwan', region: 'asia', channelHandle: '@JackyWuTaipei', fallbackVideoId: 'z_fY1pj1VBw' },
-  { id: 'shanghai', city: 'Shanghai', country: 'China', region: 'asia', channelHandle: '@SkylineWebcams', fallbackVideoId: '76EwqI5XZIc' },
+  { id: 'washington', city: 'Washington D.C.', country: 'USA', region: 'americas', channelHandle: '@EarthCamTV', fallbackVideoId: 'TNCVkzraJ0I' },
+  { id: 'nyc', city: 'New York City', country: 'USA', region: 'americas', channelHandle: '@EarthCamNYC', fallbackVideoId: '1-iS7LArMPA' },
+  { id: 'miami', city: 'Miami', country: 'USA', region: 'americas', channelHandle: '@MiamiBeachLiveCam', fallbackVideoId: '_9OBfCR0j5M' },
+  // Asia
   { id: 'tokyo', city: 'Tokyo', country: 'Japan', region: 'asia', channelHandle: '@TokyoLiveCam4K', fallbackVideoId: '4pu9sF5Qssw' },
   { id: 'seoul', city: 'Seoul', country: 'South Korea', region: 'asia', channelHandle: '@UNvillage_live', fallbackVideoId: '-JhoMGoAfFc' },
   { id: 'sydney', city: 'Sydney', country: 'Australia', region: 'asia', channelHandle: '@WebcamSydney', fallbackVideoId: '7pcL-0Wo77U' },
@@ -45,15 +64,15 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
 
 const MAX_GRID_CELLS = 4;
 
-type ViewMode = 'grid' | 'single';
 type RegionFilter = 'all' | WebcamRegion;
+type ViewMode = 'grid' | 'single';
 
 export class LiveWebcamsPanel extends Panel {
-  private viewMode: ViewMode = 'grid';
-  private regionFilter: RegionFilter = 'all';
   private activeFeed: WebcamFeed = WEBCAM_FEEDS[0]!;
-  private toolbar: HTMLElement | null = null;
+  private regionFilter: RegionFilter = 'all';
+  private viewMode: ViewMode = 'grid';
   private iframes: HTMLIFrameElement[] = [];
+  private toolbar!: HTMLDivElement;
   private observer: IntersectionObserver | null = null;
   private isVisible = false;
   private idleTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -61,6 +80,14 @@ export class LiveWebcamsPanel extends Panel {
   private boundVisibilityHandler!: () => void;
   private readonly IDLE_PAUSE_MS = 5 * 60 * 1000;
   private isIdle = false;
+
+  // India dynamic feeds state
+  private indiaFeeds: IndiaLiveFeed[] = [];
+  private indiaAllFeeds: IndiaLiveFeed[] = [];
+  private indiaLoading = false;
+  private indiaError: string | null = null;
+  private indiaSelectedFeedIdx: number | null = null; // for dropdown single-view
+  private indiaFetched = false;
 
   constructor() {
     super({ id: 'live-webcams', title: t('panels.liveWebcams') });
@@ -101,6 +128,7 @@ export class LiveWebcamsPanel extends Panel {
       { key: 'europe', label: t('components.webcams.regions.europe') },
       { key: 'americas', label: t('components.webcams.regions.americas') },
       { key: 'asia', label: t('components.webcams.regions.asia') },
+      { key: 'india', label: 'INDIA' },
     ];
 
     regions.forEach(({ key, label }) => {
@@ -144,11 +172,45 @@ export class LiveWebcamsPanel extends Panel {
     this.toolbar?.querySelectorAll('.webcam-region-btn').forEach(btn => {
       (btn as HTMLElement).classList.toggle('active', (btn as HTMLElement).dataset.region === filter);
     });
+    if (filter === 'india') {
+      // Fetch India feeds dynamically
+      this.indiaSelectedFeedIdx = null;
+      if (!this.indiaFetched) {
+        this.fetchIndiaFeeds();
+      } else {
+        this.render();
+      }
+      return;
+    }
     const feeds = this.filteredFeeds;
     if (feeds.length > 0 && !feeds.includes(this.activeFeed)) {
       this.activeFeed = feeds[0]!;
     }
     this.render();
+  }
+
+  private async fetchIndiaFeeds(): Promise<void> {
+    this.indiaLoading = true;
+    this.indiaError = null;
+    this.render();
+
+    try {
+      const baseUrl = isDesktopRuntime() ? getRemoteApiBaseUrl() : '';
+      const res = await fetch(`${baseUrl}/api/youtube/india-live-feeds`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: IndiaFeedsResponse = await res.json();
+      this.indiaFeeds = data.grid;
+      this.indiaAllFeeds = data.all;
+      this.indiaError = data.error || null;
+      this.indiaFetched = true;
+    } catch (e: any) {
+      this.indiaError = e.message || 'Failed to fetch India feeds';
+      this.indiaFeeds = [];
+      this.indiaAllFeeds = [];
+    } finally {
+      this.indiaLoading = false;
+      this.render();
+    }
   }
 
   private setViewMode(mode: ViewMode): void {
@@ -160,7 +222,7 @@ export class LiveWebcamsPanel extends Panel {
     this.render();
   }
 
-  private buildEmbedUrl(videoId: string): string {
+  private buildEmbedUrlFromVideoId(videoId: string): string {
     const quality = getStreamQuality();
     if (isDesktopRuntime()) {
       const remoteBase = getRemoteApiBaseUrl();
@@ -176,11 +238,28 @@ export class LiveWebcamsPanel extends Panel {
     return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0${vq}`;
   }
 
+  private buildEmbedUrl(feed: WebcamFeed): string {
+    return this.buildEmbedUrlFromVideoId(feed.fallbackVideoId);
+  }
+
   private createIframe(feed: WebcamFeed): HTMLIFrameElement {
     const iframe = document.createElement('iframe');
     iframe.className = 'webcam-iframe';
-    iframe.src = this.buildEmbedUrl(feed.fallbackVideoId);
+    iframe.src = this.buildEmbedUrl(feed);
     iframe.title = `${feed.city} live webcam`;
+    iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
+    return iframe;
+  }
+
+  private createIframeFromVideoId(videoId: string, title: string): HTMLIFrameElement {
+    const iframe = document.createElement('iframe');
+    iframe.className = 'webcam-iframe';
+    iframe.src = this.buildEmbedUrlFromVideoId(videoId);
+    iframe.title = title;
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = 'strict-origin-when-cross-origin';
@@ -194,6 +273,11 @@ export class LiveWebcamsPanel extends Panel {
 
     if (!this.isVisible || this.isIdle) {
       this.content.innerHTML = '<div class="webcam-placeholder">Webcams paused</div>';
+      return;
+    }
+
+    if (this.regionFilter === 'india') {
+      this.renderIndia();
       return;
     }
 
@@ -232,6 +316,155 @@ export class LiveWebcamsPanel extends Panel {
     });
 
     this.content.appendChild(grid);
+  }
+
+  // --- India dynamic feeds ---
+
+  private renderIndia(): void {
+    this.content.innerHTML = '';
+    this.content.className = 'panel-content webcam-content';
+
+    if (this.indiaLoading) {
+      this.content.innerHTML = `
+        <div class="webcam-india-loading">
+          <div class="webcam-india-spinner"></div>
+          <div class="webcam-india-loading-text">Discovering live Indian streams...</div>
+          <div class="webcam-india-loading-sub">Checking ${20} channels</div>
+        </div>`;
+      return;
+    }
+
+    if (this.indiaError && this.indiaFeeds.length === 0) {
+      this.content.innerHTML = `
+        <div class="webcam-india-error">
+          <div style="font-size:1.5em;margin-bottom:8px">⚠️</div>
+          <div>${escapeHtml(this.indiaError)}</div>
+          <button class="webcam-india-retry" id="india-retry">Retry</button>
+        </div>`;
+      this.content.querySelector('#india-retry')?.addEventListener('click', () => {
+        this.indiaFetched = false;
+        this.fetchIndiaFeeds();
+      });
+      return;
+    }
+
+    if (this.indiaSelectedFeedIdx !== null && this.indiaAllFeeds[this.indiaSelectedFeedIdx]) {
+      this.renderIndiaSingle(this.indiaAllFeeds[this.indiaSelectedFeedIdx]!);
+      return;
+    }
+
+    // Grid view — show random 4
+    this.renderIndiaGrid();
+  }
+
+  private renderIndiaGrid(): void {
+    const feeds = this.indiaFeeds;
+
+    if (feeds.length === 0) {
+      this.content.innerHTML = '<div class="webcam-placeholder">No live Indian streams found. Try again later.</div>';
+      return;
+    }
+
+    // Header row with feed count and dropdown
+    const header = document.createElement('div');
+    header.className = 'webcam-india-header';
+    header.innerHTML = `
+      <span class="webcam-india-count">${this.indiaAllFeeds.length} live channels verified</span>
+      <button class="webcam-india-refresh" id="india-refresh" title="Refresh feeds">↻ Refresh</button>
+    `;
+    this.content.appendChild(header);
+    header.querySelector('#india-refresh')?.addEventListener('click', () => {
+      this.indiaFetched = false;
+      this.fetchIndiaFeeds();
+    });
+
+    // Grid
+    const grid = document.createElement('div');
+    grid.className = 'webcam-grid';
+
+    feeds.forEach((feed, _idx) => {
+      const cell = document.createElement('div');
+      cell.className = 'webcam-cell';
+      cell.addEventListener('click', () => {
+        const allIdx = this.indiaAllFeeds.findIndex(f => f.id === feed.id);
+        this.indiaSelectedFeedIdx = allIdx >= 0 ? allIdx : 0;
+        this.render();
+      });
+
+      const label = document.createElement('div');
+      label.className = 'webcam-cell-label';
+      label.innerHTML = `<span class="webcam-live-dot"></span><span class="webcam-city">${escapeHtml(feed.label.toUpperCase())}</span>`;
+
+      const iframe = this.createIframeFromVideoId(feed.videoId, `${feed.label} live`);
+      cell.appendChild(iframe);
+      cell.appendChild(label);
+      grid.appendChild(cell);
+      this.iframes.push(iframe);
+    });
+
+    this.content.appendChild(grid);
+
+    // Dropdown: all verified feeds
+    if (this.indiaAllFeeds.length > feeds.length) {
+      const dropdown = document.createElement('div');
+      dropdown.className = 'webcam-india-dropdown';
+
+      const select = document.createElement('select');
+      select.className = 'webcam-india-select';
+      select.innerHTML = '<option value="">▼ All verified Indian channels (' + this.indiaAllFeeds.length + ')</option>';
+      this.indiaAllFeeds.forEach((f, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = `${f.label} — ${f.city} (${f.category})`;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', () => {
+        const val = select.value;
+        if (val !== '') {
+          this.indiaSelectedFeedIdx = parseInt(val, 10);
+          this.render();
+        }
+      });
+      dropdown.appendChild(select);
+      this.content.appendChild(dropdown);
+    }
+  }
+
+  private renderIndiaSingle(feed: IndiaLiveFeed): void {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'webcam-single';
+
+    const iframe = this.createIframeFromVideoId(feed.videoId, `${feed.label} live`);
+    wrapper.appendChild(iframe);
+    this.iframes.push(iframe);
+    this.content.appendChild(wrapper);
+
+    // Switcher bar
+    const switcher = document.createElement('div');
+    switcher.className = 'webcam-switcher';
+
+    const backBtn = document.createElement('button');
+    backBtn.className = 'webcam-feed-btn webcam-back-btn';
+    backBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg> Grid';
+    backBtn.addEventListener('click', () => {
+      this.indiaSelectedFeedIdx = null;
+      this.render();
+    });
+    switcher.appendChild(backBtn);
+
+    // Feed buttons from all verified
+    this.indiaAllFeeds.forEach((f, i) => {
+      const btn = document.createElement('button');
+      btn.className = `webcam-feed-btn${i === this.indiaSelectedFeedIdx ? ' active' : ''}`;
+      btn.textContent = f.label;
+      btn.addEventListener('click', () => {
+        this.indiaSelectedFeedIdx = i;
+        this.render();
+      });
+      switcher.appendChild(btn);
+    });
+
+    this.content.appendChild(switcher);
   }
 
   private renderSingle(): void {
